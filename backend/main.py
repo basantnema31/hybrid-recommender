@@ -1830,8 +1830,19 @@ def get_trending_products(
 def submit_feedback(
     data: FeedbackCreate,
     request: Request,
+    response: Response,
     _csrf: None = Depends(csrf_header_dep),
 ):
+    limited_response = _apply_rate_limit(
+        request,
+        response,
+        scope="feedback",
+        limit_env="RATE_LIMIT_FEEDBACK_PER_MIN",
+        default_limit=20,
+    )
+    if limited_response is not None:
+        return limited_response
+
     feedback_client = _get_feedback_storage_client()
     feedback_record = {
         "user_id": data.user_id,
@@ -1906,7 +1917,17 @@ def _verify_github_signature(request_body: bytes, signature_header: str | None) 
 
 
 @app.post("/api/webhook/github")
-async def github_webhook(request: Request):
+async def github_webhook(request: Request, response: Response):
+    limited_response = _apply_rate_limit(
+        request,
+        response,
+        scope="github_webhook",
+        limit_env="RATE_LIMIT_GITHUB_WEBHOOK_PER_MIN",
+        default_limit=60,
+    )
+    if limited_response is not None:
+        return limited_response
+
     body_bytes = await request.body()
     signature = request.headers.get("X-Hub-Signature-256")
     _verify_github_signature(body_bytes, signature)

@@ -42,6 +42,32 @@ class _FakeSupabase:
         return self.feedback_table
 
 
+class _FakeInsertResult:
+    def __init__(self, data):
+        self.data = data
+
+
+class _FakeFeedbackTable:
+    def __init__(self):
+        self.inserted = []
+
+    def insert(self, payload):
+        self.inserted.append(payload)
+        return self
+
+    def execute(self):
+        return _FakeInsertResult([self.inserted[-1]])
+
+
+class _FakeSupabase:
+    def __init__(self):
+        self.feedback_table = _FakeFeedbackTable()
+
+    def table(self, name):
+        assert name == "feedback_submissions"
+        return self.feedback_table
+
+
 def test_submit_feedback_validation_failures():
     #Test: Invalid inputs should return 422 (Validation Error).Empty user_id, item, feedback — should fail.
     token = get_csrf_token()
